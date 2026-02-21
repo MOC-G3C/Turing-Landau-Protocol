@@ -78,4 +78,8 @@ plt.ylabel("Efficience (Information / Chaleur)")
 plt.title("L'AXE HYBRIDE : Transition de Phase et Point Critique")
 plt.legend()
 plt.grid(True, alpha=0.2)
+
+# --- SAUVEGARDE LOCALE (Corrigée pour éviter le Errno 2) ---
+plt.savefig("rapport_transition_phase.png", dpi=300)
+print("📸 Rapport visuel généré : rapport_transition_phase.png")
 plt.show()
