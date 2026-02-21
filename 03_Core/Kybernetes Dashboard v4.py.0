@@ -1,0 +1,116 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+
+# -----------------------------
+# Paramètres de l'Écosystème Animé
+# -----------------------------
+num_agents = 9
+L = 16
+steps = 1000
+dt = 0.01
+
+adapt_profiles = [
+    {"name": "Stoïcien", "adapt": 0.0001, "color": "blue"},
+    {"name": "Plastique", "adapt": 0.01, "color": "green"},
+    {"name": "Équilibré", "adapt": 0.002, "color": "purple"},
+] * 3
+
+def init_agents():
+    agents = []
+    for prof in adapt_profiles:
+        agents.append({
+            "Theta": 0.001 * np.random.randn(L,L),
+            "kappa": 1.0,
+            "heat": 0.0,
+            "adapt": prof["adapt"],
+            "color": prof["color"],
+            "name": prof["name"],
+            "kappa_history": [],
+            "heat_history": [],
+            "var_history": []
+        })
+    return agents
+
+agents = init_agents()
+
+def cognitive_load(step):
+    return 0.2 + 0.8 * np.sin(2 * np.pi * step / 400.0)**2
+
+# -----------------------------
+# Figure & Axes
+# -----------------------------
+fig, axs = plt.subplots(2,2, figsize=(12,8))
+plt.subplots_adjust(hspace=0.3, wspace=0.3)
+
+heat_ax = axs[0,0]
+fitness_ax = axs[0,1]
+corr_ax = axs[1,0]
+kappa_ax = axs[1,1]
+
+heat_matrix = np.zeros((3,3))
+hm = heat_ax.imshow(heat_matrix, cmap="hot", interpolation="nearest")
+heat_ax.set_title("Carte de Chaleur Collective")
+
+bars = fitness_ax.bar([p["name"] for p in adapt_profiles[:3]], [0]*3, color=[p["color"] for p in adapt_profiles[:3]])
+fitness_ax.set_title("Histogramme de Fitness Thermodynamique")
+
+corr_matrix = np.zeros((num_agents,num_agents))
+corr_im = corr_ax.imshow(corr_matrix, cmap="coolwarm", vmin=-1, vmax=1)
+corr_ax.set_title("Corrélation Inter-Agents")
+
+kappa_lines = [kappa_ax.plot([], [], color=agent["color"], alpha=0.5)[0] for agent in agents]
+kappa_ax.set_title("Évolution de Kappa")
+kappa_ax.set_xlim(0, steps)
+kappa_ax.set_ylim(0.4, 2.6)
+
+# -----------------------------
+# Animation Update
+# -----------------------------
+def update(frame):
+    total_heat = sum(agent["heat"] for agent in agents)
+    for agent in agents:
+        Theta = agent["Theta"]
+        kappa = agent["kappa"]
+        Omega = cognitive_load(frame)
+        D = 0.05 + 0.1 * Omega
+        lap = (np.roll(Theta,1,0)+np.roll(Theta,-1,0)+
+               np.roll(Theta,1,1)+np.roll(Theta,-1,1)-4*Theta)
+        dF = Theta**3 - kappa*lap - Omega
+        Theta -= 1.0*dF*dt + np.sqrt(2*D*dt)*np.random.randn(L,L)
+        heat_gen = (D + np.var(lap)) * L**2
+        agent["heat"] = max(0, agent["heat"] + (heat_gen - 800)*dt)
+        target_var = 0.2
+        kappa += agent["adapt"] * (target_var - np.var(Theta))
+        kappa = np.clip(kappa, 0.5, 2.5)
+        agent["Theta"] = Theta
+        agent["kappa"] = kappa
+        agent["kappa_history"].append(kappa)
+        agent["heat_history"].append(agent["heat"])
+        agent["var_history"].append(np.var(Theta))
+        
+    # Update heatmap
+    heat_matrix = np.array([agent["heat_history"][-1] for agent in agents]).reshape(3,3)
+    hm.set_data(heat_matrix)
+    
+    # Update fitness histogram
+    fitness = {}
+    for agent in agents:
+        fitness.setdefault(agent["name"],0)
+        fitness[agent["name"]] += np.sum(agent["var_history"])
+    for bar, key in zip(bars, fitness.keys()):
+        bar.set_height(fitness[key])
+    
+    # Update correlation matrix
+    agent_vars = np.array([agent["var_history"] for agent in agents])
+    corr_matrix = np.corrcoef(agent_vars)
+    corr_im.set_data(corr_matrix)
+    
+    # Update kappa lines
+    for idx, agent in enumerate(agents):
+        kappa_lines[idx].set_data(range(len(agent["kappa_history"])), agent["kappa_history"])
+    
+    return hm, corr_im, bars, kappa_lines
+
+ani = FuncAnimation(fig, update, frames=steps, interval=50, blit=False, repeat=False)
+plt.show()

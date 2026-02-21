@@ -1,0 +1,69 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# -----------------------------
+# Paramètres de l'Écosystème
+# -----------------------------
+populations = {
+    "Stoïcien": {"adapt": 0.0001, "color": "blue"},
+    "Plastique": {"adapt": 0.01, "color": "green"},
+    "Équilibré": {"adapt": 0.002, "color": "purple"}
+}
+
+L = 32
+steps = 15000
+dt = 0.01
+
+# -----------------------------
+# Simulation de la Population
+# -----------------------------
+results = {}
+
+for name, traits in populations.items():
+    Theta = 0.001 * np.random.randn(L, L)
+    kappa = 1.0
+    heat_accum = 0.0
+    survival_time = steps
+    kappa_history = []
+    
+    for s in range(steps):
+        # Charge cognitive cyclique (Le "Destin")
+        Omega = 0.5 + 0.5 * np.sin(2 * np.pi * s / 5000)
+        D = 0.05 + 0.1 * Omega
+        
+        # Dynamique du Gouverneur
+        lap = (np.roll(Theta,1,0) + np.roll(Theta,-1,0) +
+               np.roll(Theta,1,1) + np.roll(Theta,-1,1) - 4*Theta)
+        
+        dF = Theta**3 - kappa*lap - Omega
+        Theta -= 1.0 * dF * dt + np.sqrt(2*D*dt) * np.random.randn(L,L)
+        
+        # Thermodynamique
+        heat_gen = (D + np.var(lap)) * L**2
+        heat_accum = max(0, heat_accum + (heat_gen - 850) * dt)
+        
+        # Adaptation de Kappa
+        kappa += traits["adapt"] * (0.2 - np.var(Theta))
+        kappa = np.clip(kappa, 0.5, 2.5)
+        kappa_history.append(kappa)
+        
+        # Arrêt de mort (Zero Law)
+        if heat_accum > 30000:
+            survival_time = s
+            break
+            
+    results[name] = {"kappa": kappa_history, "survival": survival_time}
+
+# -----------------------------
+# Verdict de l'Évolution
+# -----------------------------
+plt.figure(figsize=(12, 6))
+for name, data in results.items():
+    plt.plot(data["kappa"], label=f"{name} (Survie: {data['survival']} steps)", color=populations[name]["color"])
+
+plt.axhline(y=1.0, color='black', linestyle='--', alpha=0.3)
+plt.title("Sélection Naturelle des Identités Thermiques")
+plt.xlabel("Temps (Steps)")
+plt.ylabel("Rigidité de l'Identité (Kappa)")
+plt.legend()
+plt.show()

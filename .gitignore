@@ -1,0 +1,21 @@
+# --- PROTECTION L'AXE HYBRIDE (MOC-G3C) ---
+
+# Variables d'environnement (Signature Biologique)
+.env
+
+# Fichiers Système macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+
+# Documents de travail
+divers/
+*.pdf
+*.rtf
